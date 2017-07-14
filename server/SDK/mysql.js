@@ -26,13 +26,14 @@ let selectIndex = (data) => {
      * 查询条件可以省略
      *
      * */
-    let {page, limit, where} = data;
-    limit = limit ? limit : 20;
-    page = page ? (page - 1) * limit : 0;
-    if (typeof where === "object") where = `where ${utile.SQLAND(where)}`;
-    else where = "";
+
     let readFile = () => {
         return new Promise((resolve, reject) => {
+            let {page, limit, where} = data;
+            limit = limit ? limit : 20;
+            page = page ? (page - 1) * limit : 0;
+            if (typeof where === "object") where = `where ${utile.SQLAND(where)}`;
+            else where = "";
             conn.query(`SELECT * FROM list ${where} ORDER BY etime desc LIMIT ?,?`, [page, limit], (err, roow) => {
                 if (err) reject(err);
                 roow = utile.SQLDataForm(roow);
@@ -57,11 +58,11 @@ let userReg = (data) => {
     let {tel, username} = data;
 
     let readUser = () => {
-        let obj = {};
-        if (tel) obj.tel = tel;
-        if (username) obj.username = username;
-        obj = `where ${utile.SQLor(obj)}`;
         return new Promise((resolve, reject) => {
+            let obj = {};
+            if (tel) obj.tel = tel;
+            if (username) obj.username = username;
+            obj = `where ${utile.SQLor(obj)}`;
             conn.query(`SELECT * FROM user ${obj}`, (err, roow) => {
                 if (err) reject(err);
                 resolve(roow);
@@ -71,9 +72,10 @@ let userReg = (data) => {
 
     //用户注册
     let regUser = () => {
-        let keys = Object.keys(data).join(",");
-        let values = Object.values(data).join(",");
         return new Promise((resolve, reject) => {
+            let keys = Object.keys(data).join(",");
+            let values = "'" + Object.values(data).join("','") + "'";
+            console.log(`INSERT INTO user (${keys}) VALUES (${values})`);
             conn.query(`INSERT INTO user (${keys}) VALUES (${values})`, (err, roow, flie) => {
                 // conn.end();
                 if (err) reject(err);
@@ -83,7 +85,6 @@ let userReg = (data) => {
 
     };
     let gen = async () => {
-        console.log((await readUser()).length);
         let select = await readUser();
         if (!(select.length)) {
             if ((await regUser()) === null) {
@@ -91,9 +92,9 @@ let userReg = (data) => {
             }
         } else {
             let data = utile.SQLDataForm(select)[0];
-            if(data.username===username){
+            if (data.username === username) {
                 console.log("用户名重复");
-            }else {
+            } else {
                 console.log("手机号重复");
             }
         }
@@ -101,9 +102,78 @@ let userReg = (data) => {
     };
     gen()
 };
-userReg({username: 3, tel: 3});
+// userReg({username: "九天", tel: 13693730889,password:"asd123"});
 
 
+//用户发帖
+let userPost = (data) => {
+    let post = (table, data) => {
+        return new Promise((resolve, reject) => {
+            let dataKeys = Object.keys(data).join(","),
+                dataValues = '"' + Object.values(data).join('","') + '"';
+            console.log(dataValues);
+            conn.query(`INSERT INTO ${table} (${dataKeys}) VALUES (${dataValues})`, (err, roow) => {
+                if (err) reject(err);
+                resolve(roow)
+            })
+        });
+    };
+    let gen = async () => {
+        data.pid = data.ctime;
+        data.del = 0;
+        let listData = Object.assign([], data);
+        listData.num = 0;
+        listData.etime = data.ctime;
+
+        let postData = Object.assign([], data);
+        delete postData.title;
+        delete postData.ctime;
+        postData.fid = 1;
+        postData.cid = 0;
+
+        let userPData = Object.assign([], postData);
+        delete userPData.content;
+        userPData.unread = 0;
+        await post("list", listData);
+        console.log(listData);
+        await post("post", postData);
+        await post("userpost", userPData);
+        conn.end()
+        console.log("发帖成功");
+    };
+    gen()
+};
+let time = new Date().getTime();
+// userPost({title: "我是第一个帖子", content: "看看是啥", ctime: time, creater: "九天"});
+
+//用户发帖查询
+let userPostSelect = (data) => {
+    /*
+    *   creater 我的发帖查询
+    *   createred 回复我的查询
+    *   unread 是否已读
+    * */
+    let select=(data)=>{
+        return new Promise((resolve,reject)=>{
+            data=utile.SQLand(data);
+            conn.query(`select * from userpost where ${data}`,function (err,roow) {
+                if(err)reject(err);
+                roow=utile.SQLDataForm(roow);
+                resolve(roow);
+            })
+        })
+    };
+    let gen=async ()=>{
+        let value=await select(data);
+        console.log(value);
+    };
+    gen();
+};
+
+// userPostSelect({creater:"九天",unread:1});
+
+
+//回帖
 
 
 
